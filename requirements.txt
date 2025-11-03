@@ -1,0 +1,36 @@
+# =============================================
+# 🚀 MRH-CRIBOT - Requirements
+# 👤 Developer: Mohammad Reza Hossein Khani
+# 📦 Python Package Dependencies
+# =============================================
+
+# 🤖 Core Telegram Bot
+python-telegram-bot==20.7
+
+# 🗄️ Database & ORM
+sqlalchemy==2.0.23
+alembic==1.12.1
+
+# 📊 Data Analysis & APIs
+pandas==2.1.4
+numpy==1.25.2
+requests==2.31.0
+
+# 📅 Utilities
+python-dateutil==2.8.2
+pytz==2023.3
+
+# 🔐 Security (Optional)
+cryptography==41.0.7
+
+# 📈 Technical Analysis (Optional)
+ta-lib==0.4.26  # If available, or use ta==0.10.2 as alternative
+
+# 🔄 Async Support
+aiohttp==3.8.5
+
+# 📝 Logging
+colorlog==6.7.0
+
+# 🎯 MRH-CRIBOT Specific
+# No additional packages required for base functionality
