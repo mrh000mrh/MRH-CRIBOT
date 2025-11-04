@@ -10,7 +10,8 @@ from telegram.ext import Application, CommandHandler, CallbackQueryHandler, Mess
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import ContextTypes
 
-from config import CONFIG, BOT_TOKEN
+from config import BOT_TOKEN, BOT_NAME, ADMINS
+from database import db
 
 # تنظیمات پیشرفته لاگ‌گیری
 logging.basicConfig(
@@ -25,39 +26,42 @@ logger = logging.getLogger(__name__)
 
 class MRHCribot:
     def __init__(self):
-        self.config = CONFIG
         self.application = None
         
     async def start_command(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
         """دستور /start - اولین ارتباط کاربر با ربات"""
         user = update.effective_user
+        user_id = user.id
+        username = user.username
+        
+        # افزودن کاربر به دیتابیس
+        db.add_user(user_id, username)
+        
+        # بررسی اینکه کاربر قبلاً شرایط را پذیرفته
+        if not context.user_data.get('disclaimer_accepted'):
+            from handlers.disclaimer import show_disclaimer
+            await show_disclaimer(update, context)
+            return
         
         welcome_text = f"""
-👋 **سلام {user.first_name} عزیز!**
+🎉 **به {BOT_NAME} خوش آمدید!**
 
-به **{self.config.BOT_NAME}** خوش آمدید 🤖
-
-🧠 **ربات هوشمند کریپتو و VPN**
-• توسعه‌دهنده: **{self.config.DEVELOPER}**
-• نسخه: **{self.config.VERSION}**
-
-🎯 **سرویس‌های هوشمند ما:**
-📊 **سیگنال‌های کریپتو** - تحلیل هوشمند بازار
-🛡 **سرویس VPN** - امنیت و سرعت بالا  
-💰 **پرداخت چند ارزی** - ریالی و ارز دیجیتال
-🤖 **پشتیبانی هوشمند** - پاسخگویی 24/7
-
-لطفاً از منوی زیر انتخاب کنید:
+لطفاً گزینه مورد نظر خود را انتخاب کنید:
         """
         
         # ایجاد کیبورد منوی اصلی
         keyboard = [
-            [InlineKeyboardButton("📊 سیگنال‌های هوشمند", callback_data="intelligence_menu")],
-            [InlineKeyboardButton("🛡 سرویس VPN", callback_data="vpn_menu")],
-            [InlineKeyboardButton("💰 پرداخت و کیف پول", callback_data="payment_menu")],
-            [InlineKeyboardButton("🤖 پشتیبانی MRH", callback_data="support_menu")],
-            [InlineKeyboardButton("ℹ️ درباره ربات", callback_data="about_menu")]
+            [InlineKeyboardButton("🎯 ورود به کانال های VIP", callback_data="vip_channels")],
+            [InlineKeyboardButton("🛡️ خرید کانفیگ", callback_data="buy_config")],
+            [InlineKeyboardButton("👤 حساب کاربری", callback_data="my_account")],
+            [InlineKeyboardButton("📞 پشتیبانی", callback_data="support")],
+            [InlineKeyboardButton("ℹ️ راهنما", callback_data="help")]
         ]
+        
+        # افزودن دکمه مدیریت برای ادمین‌ها
+        if user_id in ADMINS:
+            keyboard.append([InlineKeyboardButton("👑 مدیریت ربات", callback_data="admin_panel")])
+        
         reply_markup = InlineKeyboardMarkup(keyboard)
         
         await update.message.reply_text(welcome_text, reply_markup=reply_markup, parse_mode='Markdown')
@@ -67,107 +71,127 @@ class MRHCribot:
     async def help_command(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
         """دستور /help - راهنمای کامل ربات"""
         help_text = f"""
-📖 **راهنمای {self.config.BOT_NAME}**
+📖 **راهنمای {BOT_NAME}**
 
 🔸 **دستورات اصلی:**
 /start - شروع ربات و منوی اصلی
 /help - نمایش راهنمای کامل
-/about - اطلاعات ربات و توسعه‌دهنده
 
-🔸 **منوهای هوشمند:**
-• 📊 سیگنال‌های کریپتو - تحلیل هوشمند بازار
-• 🛡 سرویس VPN - اتصال امن و پرسرعت
-• 💰 پرداخت - درگاه ریالی و ارزی
-• 🤖 پشتیبانی - راهنمایی و حل مشکل
+🔸 **منوهای اصلی:**
+• 🎯 کانال‌های VIP - دسترسی به سیگنال‌ها
+• 🛡️ خرید کانفیگ - سرویس VPN اختصاصی
+• 👤 حساب کاربری - مدیریت حساب
+• 📞 پشتیبانی - راهنمایی و حل مشکل
 
 🔸 **ویژگی‌های منحصر بفرد:**
-✅ هوش مصنوعی در تحلیل بازار
-✅ سرویس VPN با کانفیگ خودکار
-✅ پشتیبانی 24 ساعته
+✅ سیستم دسترسی سه‌گانه (خرید VPN، لایسنس، ادمین)
+✅ پنل مدیریت پیشرفته
+✅ پشتیبانی هوشمند
 ✅ رابط کاربری فارسی و ساده
 
-🛠 **توسعه‌دهنده:** {self.config.DEVELOPER}
+🎯 **سیستم دسترسی به سیگنال‌ها:**
+1. خرید کانفیگ VPN
+2. کد لایسنس
+3. دسترسی مستقیم ادمین
         """
         
         await update.message.reply_text(help_text, parse_mode='Markdown')
 
-    async def about_command(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
-        """دستور /about - اطلاعات ربات و توسعه‌دهنده"""
-        about_text = f"""
-🤖 **{self.config.BOT_NAME}**
-
-🧠 **Crypto Intelligence Bot**
-ربات هوشمند تحلیل بازار کریپتو و سرویس VPN
-
-👤 **توسعه‌دهنده:**
-{self.config.DEVELOPER}
-
-🎯 **ماموریت ربات:**
-ارائه سرویس‌های هوشمند و امن در حوزه ارزهای دیجیتال
-
-📊 **خدمات اصلی:**
-• تحلیل هوشمند بازار کریپتو
-• سیگنال‌های معاملاتی دقیق
-• سرویس VPN پرسرعت
-• پشتیبانی هوشمند
-
-🔧 **مشخصات فنی:**
-• نسخه: {self.config.VERSION}
-• پایگاه داده: SQLite
-• زبان: Python 3.8+
-• کتابخانه: python-telegram-bot
-
-🌐 **توسعه‌دهنده:** محمد رضا حسین خانی
-        """
-        
-        await update.message.reply_text(about_text, parse_mode='Markdown')
-
-    async def handle_main_menu(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
-        """مدیریت کلیک روی منوی اصلی"""
+    async def handle_callback_query(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
+        """مدیریت کلیک روی تمام دکمه‌ها"""
         query = update.callback_query
         await query.answer()
         
-        menu_type = query.data
-        user = query.from_user
+        data = query.data
+        user_id = query.from_user.id
         
-        responses = {
-            "intelligence_menu": "📊 **سیستم هوشمند سیگنال‌ها**\n\nبه زودی فعال می‌شود...\n\n🧠 تحلیل هوشمند بازار\n🎯 سیگنال‌های دقیق\n⚡ به روزرسانی لحظه‌ای",
-            "vpn_menu": "🛡 **سرویس VPN اختصاصی**\n\nبه زودی فعال می‌شود...\n\n🚀 سرعت بالا\n🔒 امنیت کامل\n🌐 عبور از محدودیت",
-            "payment_menu": "💰 **سیستم پرداخت هوشمند**\n\nبه زودی فعال می‌شود...\n\n💳 پرداخت ریالی\n🪙 پرداخت ارزی\n⚡ تراکنش سریع",
-            "support_menu": "🤖 **پشتیبانی MRH**\n\nبه زودی فعال می‌شود...\n\n👤 پشتیبانی توسعه‌دهنده\n🔄 پاسخگویی سریع\n🔧 حل مشکلات فنی",
-            "about_menu": f"ℹ️ **درباره {self.config.BOT_NAME}**\n\n🤖 ربات هوشمند کریپتو و VPN\n👤 توسعه‌دهنده: {self.config.DEVELOPER}\n🎯 نسخه: {self.config.VERSION}\n\n🔧 به زودی تمام قابلیت‌ها فعال می‌شوند!"
-        }
+        logger.info(f"کال‌بک دریافت شد: {data} از کاربر {user_id}")
         
-        if menu_type in responses:
-            # ایجاد دکمه بازگشت به منوی اصلی
-            keyboard = [[InlineKeyboardButton("🔙 بازگشت به منوی اصلی", callback_data="main_menu")]]
-            reply_markup = InlineKeyboardMarkup(keyboard)
+        # هندلرهای منوی اصلی
+        if data == "vip_channels":
+            from handlers.vip_channels import show_vip_channels_menu
+            await show_vip_channels_menu(update, context)
             
+        elif data == "buy_config":
+            from handlers.vip_channels import show_vip_access_methods
+            await show_vip_access_methods(update, context, "general")
+            
+        elif data == "my_account":
+            from handlers.account import show_account_menu
+            await show_account_menu(update, context)
+            
+        elif data == "support":
+            from handlers.smart_support import smart_support_system
+            await smart_support_system(update, context)
+            
+        elif data == "help":
+            await self.help_command(update, context)
+            
+        elif data == "admin_panel":
+            from handlers.admin_manager import show_admin_panel
+            await show_admin_panel(update, context)
+            
+        # هندلرهای کانال‌های VIP
+        elif data.startswith("vip_"):
+            channel_type = data.replace("vip_", "")
+            from handlers.vip_channels import show_vip_access_methods
+            await show_vip_access_methods(update, context, channel_type)
+            
+        elif data.startswith("channel_"):
+            channel_type = data.replace("channel_", "")
+            from handlers.vip_channels import handle_vip_access
+            await handle_vip_access(update, context, channel_type)
+            
+        # هندلرهای مدیریت
+        elif data == "super_admin_panel":
+            from handlers.super_admin import super_admin_panel
+            await super_admin_panel(update, context)
+            
+        elif data == "smart_support":
+            from handlers.smart_support import smart_support_system
+            await smart_support_system(update, context)
+            
+        elif data == "coupon_management":
+            from handlers.coupon_system import coupon_management_system
+            await coupon_management_system(update, context)
+            
+        elif data == "smart_notification":
+            from handlers.notification_system import smart_notification_system
+            await smart_notification_system(update, context)
+            
+        elif data == "smart_alerts":
+            from handlers.smart_alerts import smart_notification_alerts
+            await smart_notification_alerts(update, context)
+            
+        elif data == "advanced_stats":
+            from handlers.advanced_stats import advanced_statistics_charts
+            await advanced_statistics_charts(update, context)
+            
+        # هندلر بازگشت به منوی اصلی
+        elif data == "main_menu":
+            if query.message:
+                await query.delete_message()
+            await self.start_command(update, context)
+            
+        else:
+            # برای کال‌بک‌های تعریف نشده
             await query.edit_message_text(
-                text=responses[menu_type],
-                reply_markup=reply_markup,
+                "⚠️ این قابلیت به زودی اضافه خواهد شد!",
                 parse_mode='Markdown'
             )
-            
-            logger.info(f"کاربر {user.id} منو را باز کرد: {menu_type}")
-
-    async def handle_back_to_main(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
-        """بازگشت به منوی اصلی"""
-        query = update.callback_query
-        await query.answer()
-        
-        await self.start_command(update, context)
 
     def setup_handlers(self):
         """تنظیم تمام هندلرهای ربات"""
         # دستورات متنی
         self.application.add_handler(CommandHandler("start", self.start_command))
         self.application.add_handler(CommandHandler("help", self.help_command))
-        self.application.add_handler(CommandHandler("about", self.about_command))
         
-        # هندلرهای منو
-        self.application.add_handler(CallbackQueryHandler(self.handle_main_menu, pattern="^(intelligence|vpn|payment|support|about)_menu$"))
-        self.application.add_handler(CallbackQueryHandler(self.handle_back_to_main, pattern="^main_menu$"))
+        # هندلر اصلی کال‌بک‌ها
+        self.application.add_handler(CallbackQueryHandler(self.handle_callback_query))
+        
+        # هندلر شرایط و قوانین
+        from handlers.disclaimer import handle_disclaimer_callback
+        self.application.add_handler(CallbackQueryHandler(handle_disclaimer_callback, pattern="^(accept_disclaimer|exit_bot)$"))
 
     def run(self):
         """راه‌اندازی اصلی ربات"""
@@ -179,14 +203,13 @@ class MRHCribot:
             self.setup_handlers()
             
             # راه‌اندازی ربات
-            logger.info(f"🤖 {self.config.BOT_NAME} در حال راه‌اندازی...")
-            logger.info(f"👤 توسعه‌دهنده: {self.config.DEVELOPER}")
-            logger.info(f"🎯 نسخه: {self.config.VERSION}")
+            logger.info(f"🤖 {BOT_NAME} در حال راه‌اندازی...")
             
             print("=" * 50)
-            print(f"🚀 {self.config.BOT_NAME} - Crypto Intelligence Bot")
-            print(f"👤 Developer: {self.config.DEVELOPER}")
-            print(f"🎯 Version: {self.config.VERSION}")
+            print(f"🚀 {BOT_NAME} - Crypto Intelligence Bot")
+            print("🎯 سیستم مدیریت پیشرفته فعال شد")
+            print("📊 پنل سوپر ادمین آماده است")
+            print("🛡️ سیستم دسترسی سه‌گانه فعال است")
             print("🤖 ربات با موفقیت راه‌اندازی شد!")
             print("📍 آماده دریافت دستورات از کاربران...")
             print("=" * 50)
