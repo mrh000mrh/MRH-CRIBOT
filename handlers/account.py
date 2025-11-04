@@ -2,10 +2,12 @@
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import ContextTypes
 from database import db
+from menu_lock import MenuLock  # 🔒 سیستم قفل
 
 async def show_account_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """نمایش منوی حساب کاربری آپدیت شده"""
-    
+    """
+    🚫 منوی حساب کاربری - قفل شده
+    """
     user = update.effective_user
     user_id = user.id
     username = user.username or "تنظیم نشده"
@@ -17,31 +19,27 @@ async def show_account_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
     balance_type = "تومان"
     subscription_status = "کاربر عادی"
     active_subscription = vpn_access or license_access
+    active_status = "✅ اشتراک فعال دارید" if active_subscription else "❌ هیچ اشتراک فعالی ندارید"
     
-    keyboard = [
-        [InlineKeyboardButton("💳 افزایش موجودی", callback_data="increase_balance")],
-        [InlineKeyboardButton("📊 تاریخچه تراکنش‌ها", callback_data="transaction_history")],
-        [InlineKeyboardButton("🎫 استفاده از کوپن", callback_data="use_coupon")],
-        [InlineKeyboardButton("👥 دعوت از دوستان", callback_data="invite_friends")],
-        [InlineKeyboardButton("🔙 بازگشت به منوی اصلی", callback_data="main_menu")]
-    ]
+    # 🔒 استفاده از منوی قفل شده
+    menu_text, menu_buttons = MenuLock.get_locked_menu(
+        'account_menu',
+        user_id=user_id,
+        username=username,
+        balance=balance,
+        balance_type=balance_type,
+        subscription_status=subscription_status,
+        active_status=active_status
+    )
+    
+    keyboard = []
+    for button_text, callback_data in menu_buttons:
+        keyboard.append([InlineKeyboardButton(button_text, callback_data=callback_data)])
     
     reply_markup = InlineKeyboardMarkup(keyboard)
     
-    message = f"""
-👤 **حساب کاربری**
-
-🆔 آیدی: `{user_id}`
-👤 نام کاربری: @{username}  
-💰 موجودی: {balance} {balance_type}
-📊 وضعیت اشتراک: {subscription_status}
-
-🛡 **اشتراک فعال:**
-{"✅ اشتراک فعال دارید" if active_subscription else "❌ هیچ اشتراک فعالی ندارید"}
-"""
-    
     await update.callback_query.edit_message_text(
-        message, 
+        menu_text, 
         reply_markup=reply_markup, 
         parse_mode='Markdown'
     )
