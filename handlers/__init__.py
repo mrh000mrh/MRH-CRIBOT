@@ -1,7 +1,6 @@
 # handlers/__init__.py
-from .start import start_handler
-from .callback import handle_callback_query
-from .vip_channels import show_vip_channels_menu, handle_vip_access, show_vip_access_methods
+from .start import start_handler, handle_callbacks, help_command
+from .vip_channels import show_vip_channels_menu, handle_vip_access, show_access_methods
 from .disclaimer import show_disclaimer, handle_disclaimer_callback
 from .account import show_account_menu
 from .admin_manager import show_admin_panel, is_admin, get_admin_level
@@ -14,10 +13,11 @@ from .advanced_stats import advanced_statistics_charts
 
 __all__ = [
     'start_handler',
-    'handle_callback_query', 
+    'handle_callbacks', 
+    'help_command',
     'show_vip_channels_menu',
     'handle_vip_access',
-    'show_vip_access_methods',
+    'show_access_methods',
     'show_disclaimer',
     'handle_disclaimer_callback',
     'show_account_menu',
